@@ -122,20 +122,53 @@ else:
 # Show every task across all of the owner's pets.
 all_tasks = scheduler.get_all_tasks()
 if all_tasks:
-    st.write("All scheduled tasks:")
-    task_rows = [
-        {
-            "pet": task.pet.name,
-            "title": task.title,
-            "type": task.task_type,
-            "date": str(task.date),
-            "time": task.time.strftime("%H:%M"),
-            "priority": task.priority,
-            "done": task.completed,
-        }
-        for task in all_tasks
-    ]
-    st.table(task_rows)
+    st.write("Scheduled tasks")
+
+    # Optional filters for pet name and completion status.
+    filter_col1, filter_col2 = st.columns(2)
+    with filter_col1:
+        pet_choices = ["All pets"] + [pet.name for pet in owner.get_pets()]
+        pet_filter = st.selectbox("Filter by pet", pet_choices)
+    with filter_col2:
+        status_filter = st.selectbox("Filter by status", ["All", "Incomplete", "Completed"])
+
+    # Turn the dropdown choices into arguments for filter_tasks().
+    pet_name = None if pet_filter == "All pets" else pet_filter
+    completed = None
+    if status_filter == "Completed":
+        completed = True
+    elif status_filter == "Incomplete":
+        completed = False
+
+    # Filter first, then show the results sorted by time.
+    filtered_tasks = scheduler.filter_tasks(pet_name=pet_name, completed=completed)
+    tasks_to_show = scheduler.sort_by_time(filtered_tasks)
+
+    if tasks_to_show:
+        task_rows = [
+            {
+                "pet": task.pet.name,
+                "title": task.title,
+                "type": task.task_type,
+                "date": str(task.date),
+                "time": task.time.strftime("%H:%M"),
+                "priority": task.priority,
+                "repeat": task.frequency,
+                "done": task.completed,
+            }
+            for task in tasks_to_show
+        ]
+        st.table(task_rows)
+    else:
+        st.info("No tasks match the current filters.")
+
+    # Show any scheduling conflicts (tasks at the exact same date and time).
+    conflicts = scheduler.detect_conflicts()
+    if conflicts:
+        for warning in conflicts:
+            st.warning(warning)
+    else:
+        st.success("No scheduling conflicts.")
 else:
     st.info("No tasks yet. Schedule one above.")
 
@@ -146,8 +179,7 @@ st.subheader("Build Schedule")
 st.caption("Show today's tasks in order using your Scheduler.")
 
 if st.button("Generate schedule"):
-    today_tasks = scheduler.get_today_tasks()
-    today_tasks.sort(key=lambda task: task.time)
+    today_tasks = scheduler.sort_by_time(scheduler.get_today_tasks())
 
     if today_tasks:
         st.write("Today's Schedule")
