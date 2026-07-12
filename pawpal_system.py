@@ -67,7 +67,10 @@ class Pet:
 
 @dataclass
 class Task:
-    """A single care task for a pet (e.g. feeding, walking)."""
+    """A single care task for a pet (e.g. feeding, walking).
+
+    frequency controls recurrence: "none", "daily", or "weekly".
+    """
 
     title: str
     task_type: str
@@ -76,7 +79,7 @@ class Task:
     priority: str
     pet: Pet
     completed: bool = False
-    recurring: bool = False
+    frequency: str = "none"
 
     def mark_complete(self) -> None:
         """Mark this task as completed."""
@@ -117,32 +120,93 @@ class Scheduler:
         """Return all tasks sorted by date and then time."""
         return sorted(self.get_all_tasks(), key=lambda task: (task.date, task.time))
 
-    def detect_conflicts(self) -> list[Task]:
-        """Return tasks that share the same date and time as another task."""
+    def sort_by_time(self, tasks: list[Task] | None = None) -> list[Task]:
+        """Return tasks sorted by time; uses all owner tasks when none are given."""
+        if tasks is None:
+            tasks = self.get_all_tasks()
+        return sorted(tasks, key=lambda task: task.time)
+
+    def filter_tasks(
+        self, pet_name: str | None = None, completed: bool | None = None
+    ) -> list[Task]:
+        """Return tasks filtered by pet name and/or completion status."""
         tasks = self.get_all_tasks()
-        conflicts: list[Task] = []
-        for task in tasks:
-            for other in tasks:
-                if task is not other and task.date == other.date and task.time == other.time:
-                    conflicts.append(task)
-                    break
-        return conflicts
+        if pet_name is not None:
+            tasks = [task for task in tasks if task.pet.name == pet_name]
+        if completed is not None:
+            tasks = [task for task in tasks if task.completed == completed]
+        return tasks
+
+    def detect_conflicts(self) -> list[str]:
+        """Return readable warnings for tasks sharing the same date and time."""
+        tasks = self.get_all_tasks()
+        warnings: list[str] = []
+        for i in range(len(tasks)):
+            for j in range(i + 1, len(tasks)):
+                first = tasks[i]
+                second = tasks[j]
+                if first.date == second.date and first.time == second.time:
+                    warnings.append(
+                        f"Conflict on {first.date} at {first.time.strftime('%H:%M')}: "
+                        f"'{first.title}' ({first.pet.name}) and "
+                        f"'{second.title}' ({second.pet.name})"
+                    )
+        return warnings
+
+    def _next_date(self, task: Task) -> date | None:
+        """Return the next date for a recurring task, or None if it does not recur."""
+        if task.frequency == "daily":
+            return task.date + timedelta(days=1)
+        if task.frequency == "weekly":
+            return task.date + timedelta(weeks=1)
+        return None
+
+    def _make_next_occurrence(self, task: Task, next_date: date) -> Task:
+        """Build the next occurrence of a recurring task on the given date."""
+        return Task(
+            title=task.title,
+            task_type=task.task_type,
+            date=next_date,
+            time=task.time,
+            priority=task.priority,
+            pet=task.pet,
+            completed=False,
+            frequency=task.frequency,
+        )
+
+    def _occurrence_exists(self, task: Task, next_date: date) -> bool:
+        """Return True if the pet already has this task on the given date and time."""
+        for other in task.pet.get_tasks():
+            if (
+                other.title == task.title
+                and other.date == next_date
+                and other.time == task.time
+            ):
+                return True
+        return False
+
+    def mark_task_complete(self, task: Task) -> Task | None:
+        """Mark a task complete and add its next occurrence if it recurs and is new."""
+        task.mark_complete()
+        next_date = self._next_date(task)
+        if next_date is None:
+            return None
+        if self._occurrence_exists(task, next_date):
+            return None
+        next_task = self._make_next_occurrence(task, next_date)
+        task.pet.add_task(next_task)
+        return next_task
 
     def generate_recurring_tasks(self) -> list[Task]:
-        """Create the next daily occurrence for each recurring task."""
+        """Create the next occurrence for each recurring task, skipping duplicates."""
         new_tasks: list[Task] = []
-        for task in self.get_all_tasks():
-            if task.recurring:
-                next_task = Task(
-                    title=task.title,
-                    task_type=task.task_type,
-                    date=task.date + timedelta(days=1),
-                    time=task.time,
-                    priority=task.priority,
-                    pet=task.pet,
-                    completed=False,
-                    recurring=True,
-                )
-                task.pet.add_task(next_task)
-                new_tasks.append(next_task)
+        for task in list(self.get_all_tasks()):
+            next_date = self._next_date(task)
+            if next_date is None:
+                continue
+            if self._occurrence_exists(task, next_date):
+                continue
+            next_task = self._make_next_occurrence(task, next_date)
+            task.pet.add_task(next_task)
+            new_tasks.append(next_task)
         return new_tasks

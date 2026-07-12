@@ -90,7 +90,10 @@ if owner.get_pets():
         task_date = st.date_input("Date", value=date.today())
         task_time = st.time_input("Time", value=time(8, 0))
         priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
-        recurring = st.checkbox("Recurring daily")
+        frequency = st.selectbox(
+            "Repeat",
+            ["none", "daily", "weekly"],
+        )
         add_task_submitted = st.form_submit_button("Add task")
 
         if add_task_submitted:
@@ -109,7 +112,7 @@ if owner.get_pets():
                 task_time,
                 priority,
                 selected_pet,
-                recurring=recurring,
+                frequency=frequency,
             )
             scheduler.add_task(task)
             st.success(f"Scheduled '{task.title}' for {selected_pet.name}!")
