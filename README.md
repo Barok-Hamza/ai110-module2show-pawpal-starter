@@ -44,14 +44,12 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
-
-```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+```text
+Today's Schedule
+============================================================
+08:00 | Rex | Morning feeding | food | priority: high | Not done
+12:30 | Mittens | Clean litter box | cleaning | priority: medium | Not done
+18:00 | Rex | Evening walk | exercise | priority: high | Not done
 ```
 
 ## 🧪 Testing PawPal+
@@ -90,5 +88,44 @@ Describe your app in numbered steps so a reader can follow along without watchin
 3. <!-- Describe this step -->
 4. <!-- Describe this step -->
 5. <!-- Add more steps as needed -->
+
+
+
+## Smarter Scheduling
+
+- Sorting: `Scheduler.sort_by_time()` sorts tasks by time.
+- Filtering: `Scheduler.filter_tasks()` filters tasks by pet or completion status.
+- Conflict Detection: `Scheduler.detect_conflicts()` reports tasks scheduled at the same date and time.
+- Recurring Tasks: `Scheduler.mark_task_complete()` automatically creates the next daily or weekly task.
+
+
+## Testing PawPal+
+
+Run the automated tests with:
+
+```bash
+python -m pytest
+```
+
+The test suite verifies:
+
+- Completing a task changes its status
+- Adding a task increases a pet's task count
+- Tasks are sorted chronologically
+- Daily recurring tasks create the next day's occurrence
+- Scheduling conflicts are detected
+- New pets begin with no tasks
+
+### Successful Test Run
+
+```text
+Paste your successful pytest output here.
+```
+
+### Confidence Level
+
+⭐⭐⭐⭐⭐ 5/5
+
+All automated tests pass, including the main scheduling features and important edge cases.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
